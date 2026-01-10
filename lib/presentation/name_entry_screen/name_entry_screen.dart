@@ -8,9 +8,10 @@ import '../../services/supabase_service.dart';
 import './widgets/name_input_widget.dart';
 import './widgets/start_button_widget.dart';
 import './widgets/welcome_header_widget.dart';
+import '../splash_screen/widgets/particle_background_widget.dart';
 
-/// Name Entry Screen - First launch screen for capturing student information
-/// Uses stack navigation pattern, accessible only from splash for new users
+/// Name Entry Screen - Modern redesign with advanced animations
+/// First launch screen for capturing student information
 class NameEntryScreen extends StatefulWidget {
   const NameEntryScreen({Key? key}) : super(key: key);
 
@@ -19,16 +20,25 @@ class NameEntryScreen extends StatefulWidget {
 }
 
 class _NameEntryScreenState extends State<NameEntryScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocusNode = FocusNode();
   bool _isButtonEnabled = false;
   String? _errorMessage;
   String? _suggestedName;
   bool _isCheckingName = false;
-  late AnimationController _animationController;
+
+  late AnimationController _mainAnimationController;
+  late AnimationController _headerAnimationController;
+  late AnimationController _floatAnimationController;
+  late AnimationController _pulseAnimationController;
+
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late Animation<double> _headerFadeAnimation;
+  late Animation<double> _headerScaleAnimation;
+  late Animation<double> _floatAnimation;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -37,7 +47,7 @@ class _NameEntryScreenState extends State<NameEntryScreen>
     _nameController.addListener(_validateInput);
 
     // Auto-focus input field after animation
-    Future.delayed(const Duration(milliseconds: 800), () {
+    Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
         _nameFocusNode.requestFocus();
       }
@@ -45,24 +55,80 @@ class _NameEntryScreenState extends State<NameEntryScreen>
   }
 
   void _setupAnimations() {
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+    // Main content animation
+    _mainAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+      CurvedAnimation(
+        parent: _mainAnimationController,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+      ),
     );
 
     _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
           CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeOutCubic,
+            parent: _mainAnimationController,
+            curve: const Interval(0.4, 1.0, curve: Curves.easeOutCubic),
           ),
         );
 
-    _animationController.forward();
+    // Header animation
+    _headerAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _headerFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _headerAnimationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
+
+    _headerScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _headerAnimationController,
+        curve: const Interval(0.0, 0.8, curve: Curves.elasticOut),
+      ),
+    );
+
+    // Continuous floating animation
+    _floatAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _floatAnimation = Tween<double>(begin: -8.0, end: 8.0).animate(
+      CurvedAnimation(
+        parent: _floatAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    // Pulse animation for button
+    _pulseAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(
+        parent: _pulseAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    // Start animations
+    _headerAnimationController.forward();
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        _mainAnimationController.forward();
+      }
+    });
   }
 
   void _validateInput() {
@@ -87,14 +153,6 @@ class _NameEntryScreenState extends State<NameEntryScreen>
       if (text.length > 20) {
         _isButtonEnabled = false;
         _errorMessage = 'Name must be 20 characters or less';
-        return;
-      }
-
-      // Check for special characters and numbers
-      final validNameRegex = RegExp(r'^[a-zA-Z\s]+$');
-      if (!validNameRegex.hasMatch(text)) {
-        _isButtonEnabled = false;
-        _errorMessage = 'Please use only letters and spaces';
         return;
       }
 
@@ -228,7 +286,10 @@ class _NameEntryScreenState extends State<NameEntryScreen>
   void dispose() {
     _nameController.dispose();
     _nameFocusNode.dispose();
-    _animationController.dispose();
+    _mainAnimationController.dispose();
+    _headerAnimationController.dispose();
+    _floatAnimationController.dispose();
+    _pulseAnimationController.dispose();
     super.dispose();
   }
 
@@ -244,11 +305,13 @@ class _NameEntryScreenState extends State<NameEntryScreen>
             onWillPop: () async => false, // Disable back gesture
             child: Scaffold(
               backgroundColor: theme.scaffoldBackgroundColor,
-              body: SafeArea(
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: SlideTransition(
-                    position: _slideAnimation,
+              body: Stack(
+                children: [
+                  // Particle background (matching splash screen)
+                  const ParticleBackgroundWidget(),
+
+                  // Main content
+                  SafeArea(
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       child: Padding(
@@ -259,96 +322,270 @@ class _NameEntryScreenState extends State<NameEntryScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            SizedBox(height: 4.h),
+                            SizedBox(height: 2.h),
 
-                            // Welcome header with mascot
-                            WelcomeHeaderWidget(),
+                            // Animated welcome header
+                            AnimatedBuilder(
+                              animation: Listenable.merge([
+                                _headerFadeAnimation,
+                                _headerScaleAnimation,
+                                _floatAnimation,
+                              ]),
+                              builder: (context, child) {
+                                return Opacity(
+                                  opacity: _headerFadeAnimation.value,
+                                  child: Transform.scale(
+                                    scale: _headerScaleAnimation.value,
+                                    child: Transform.translate(
+                                      offset: Offset(0, _floatAnimation.value),
+                                      child: const WelcomeHeaderWidget(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
 
                             SizedBox(height: 6.h),
 
-                            // Name input field
-                            NameInputWidget(
-                              controller: _nameController,
-                              focusNode: _nameFocusNode,
-                              errorMessage: _errorMessage,
-                            ),
-
-                            // Show suggested name if available
-                            if (_suggestedName != null) ...[
-                              SizedBox(height: 2.h),
-                              GestureDetector(
-                                onTap: _useSuggestedName,
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 4.w,
-                                    vertical: 1.5.h,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.primary
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(3.w),
-                                    border: Border.all(
-                                      color: theme.colorScheme.primary
-                                          .withOpacity(0.3),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.lightbulb_outline,
-                                        color: theme.colorScheme.primary,
-                                        size: 20,
-                                      ),
-                                      SizedBox(width: 2.w),
-                                      Text(
-                                        'Try "$_suggestedName" instead?',
-                                        style: theme.textTheme.titleSmall
-                                            ?.copyWith(
-                                              color: theme.colorScheme.primary,
-                                              fontWeight: FontWeight.w700,
+                            // Animated input section
+                            AnimatedBuilder(
+                              animation: Listenable.merge([
+                                _fadeAnimation,
+                                _slideAnimation,
+                              ]),
+                              builder: (context, child) {
+                                return SlideTransition(
+                                  position: _slideAnimation,
+                                  child: FadeTransition(
+                                    opacity: _fadeAnimation,
+                                    child: Column(
+                                      children: [
+                                        // Enhanced name input with glow effect
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              20,
                                             ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: theme.colorScheme.primary
+                                                    .withValues(alpha: 0.2),
+                                                blurRadius: 20,
+                                                spreadRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                          child: NameInputWidget(
+                                            controller: _nameController,
+                                            focusNode: _nameFocusNode,
+                                            errorMessage: _errorMessage,
+                                          ),
+                                        ),
 
-                            // Show checking indicator
-                            if (_isCheckingName) ...[
-                              SizedBox(height: 2.h),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        theme.colorScheme.primary,
-                                      ),
+                                        // Suggested name with animation
+                                        if (_suggestedName != null) ...[
+                                          SizedBox(height: 2.h),
+                                          TweenAnimationBuilder<double>(
+                                            duration: const Duration(
+                                              milliseconds: 400,
+                                            ),
+                                            tween: Tween(begin: 0.0, end: 1.0),
+                                            curve: Curves.elasticOut,
+                                            builder: (context, value, child) {
+                                              return Transform.scale(
+                                                scale: value,
+                                                child: Opacity(
+                                                  opacity: value,
+                                                  child: child,
+                                                ),
+                                              );
+                                            },
+                                            child: GestureDetector(
+                                              onTap: _useSuggestedName,
+                                              child: Container(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 5.w,
+                                                  vertical: 2.h,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      theme.colorScheme.primary
+                                                          .withValues(
+                                                            alpha: 0.15,
+                                                          ),
+                                                      theme
+                                                          .colorScheme
+                                                          .secondary
+                                                          .withValues(
+                                                            alpha: 0.15,
+                                                          ),
+                                                    ],
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                  border: Border.all(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .primary
+                                                        .withValues(alpha: 0.4),
+                                                    width: 2,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .primary
+                                                          .withValues(
+                                                            alpha: 0.2,
+                                                          ),
+                                                      blurRadius: 12,
+                                                      spreadRadius: 1,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.auto_fix_high,
+                                                      color: theme
+                                                          .colorScheme
+                                                          .primary,
+                                                      size: 24,
+                                                    ),
+                                                    SizedBox(width: 3.w),
+                                                    Flexible(
+                                                      child: Text(
+                                                        'Try "$_suggestedName" instead? 💡',
+                                                        style: theme
+                                                            .textTheme
+                                                            .titleMedium
+                                                            ?.copyWith(
+                                                              color: theme
+                                                                  .colorScheme
+                                                                  .primary,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                            ),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+
+                                        // Checking indicator with pulsing animation
+                                        if (_isCheckingName) ...[
+                                          SizedBox(height: 2.h),
+                                          TweenAnimationBuilder<double>(
+                                            duration: const Duration(
+                                              milliseconds: 600,
+                                            ),
+                                            tween: Tween(begin: 0.0, end: 1.0),
+                                            builder: (context, value, child) {
+                                              return Opacity(
+                                                opacity: value,
+                                                child: child,
+                                              );
+                                            },
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 4.w,
+                                                vertical: 1.5.h,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: theme
+                                                    .colorScheme
+                                                    .surfaceVariant
+                                                    .withValues(alpha: 0.5),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .primary
+                                                      .withValues(alpha: 0.3),
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2.5,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                            Color
+                                                          >(
+                                                            theme
+                                                                .colorScheme
+                                                                .primary,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 3.w),
+                                                  Text(
+                                                    'Checking availability...',
+                                                    style: theme
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          color: theme
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ),
-                                  SizedBox(width: 2.w),
-                                  Text(
-                                    'Checking availability...',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                );
+                              },
+                            ),
 
                             SizedBox(height: 8.h),
 
-                            // Start learning button
-                            StartButtonWidget(
-                              isEnabled: _isButtonEnabled,
-                              onPressed: _handleStartLearning,
+                            // Animated start button with pulse effect
+                            AnimatedBuilder(
+                              animation: Listenable.merge([
+                                _fadeAnimation,
+                                _slideAnimation,
+                                _pulseAnimation,
+                              ]),
+                              builder: (context, child) {
+                                return SlideTransition(
+                                  position: _slideAnimation,
+                                  child: FadeTransition(
+                                    opacity: _fadeAnimation,
+                                    child: Transform.scale(
+                                      scale: _isButtonEnabled
+                                          ? _pulseAnimation.value
+                                          : 1.0,
+                                      child: StartButtonWidget(
+                                        isEnabled: _isButtonEnabled,
+                                        onPressed: _handleStartLearning,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
 
                             SizedBox(height: 4.h),
@@ -357,7 +594,7 @@ class _NameEntryScreenState extends State<NameEntryScreen>
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/leaderboard_screen/leaderboard_screen.dart';
 import '../presentation/name_entry_screen/name_entry_screen.dart';
 import '../presentation/progress_tracking_screen/progress_tracking_screen.dart';
@@ -9,6 +10,7 @@ import '../presentation/settings_screen/settings_screen.dart';
 
 class AppRoutes {
   static const String initial = '/';
+  static const String splash = '/splash-screen';
   static const String leaderboard = '/leaderboard-screen';
   static const String nameEntry = '/name-entry-screen';
   static const String progressTracking = '/progress-tracking-screen';
@@ -18,7 +20,8 @@ class AppRoutes {
   static const String settings = '/settings-screen';
 
   static Map<String, WidgetBuilder> routes = {
-    initial: (context) => const NameEntryScreen(),
+    initial: (context) => const SplashScreen(),
+    splash: (context) => const SplashScreen(),
     leaderboard: (context) => const LeaderboardScreen(),
     nameEntry: (context) => const NameEntryScreen(),
     progressTracking: (context) => const ProgressTrackingScreen(),

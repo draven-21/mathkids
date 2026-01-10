@@ -12,6 +12,9 @@ import '../../services/supabase_service.dart';
 import '../../widgets/animated_math_background.dart';
 import '../../widgets/custom_icon_widget.dart';
 import '../../widgets/glass_card.dart';
+import '../../widgets/avatar_picker_widget.dart';
+import '../../widgets/user_avatar_widget.dart';
+import '../../services/avatar_state_manager.dart';
 import './widgets/achievement_badge_widget.dart';
 import './widgets/progress_chart_widget.dart';
 import './widgets/skill_progress_widget.dart';
@@ -30,30 +33,58 @@ class ProgressTrackingScreen extends StatefulWidget {
 class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
   bool _isLoading = true;
 
-  // User data from Supabase
-  String studentName = "";
+  // User info
+  String studentName = '';
+  String? avatarUrl;
+  String avatarInitials = '';
+  Color avatarColor = const Color(0xFF4A90E2);
   int totalPoints = 0;
   int currentLevel = 1;
   int currentStreak = 0;
   int quizzesCompleted = 0;
-  int averageScore = 0;
+  double averageScore = 0.0;
+  String? _currentUserId;
 
-  // Activity data from Supabase
+  // Activity and performance data
   Map<DateTime, int> activityData = {};
 
-  // Weekly scores for chart from Supabase
+  // Weekly scores
   List<Map<String, dynamic>> weeklyScores = [];
 
-  // Skills progress data from Supabase
+  // Skills data
   List<Map<String, dynamic>> skillsData = [];
 
-  // Achievements data from Supabase
+  // Achievements data
   List<Map<String, dynamic>> achievementsData = [];
 
   @override
   void initState() {
     super.initState();
     _loadProgressData();
+    // Listen to avatar changes
+    AvatarStateManager().addListener(_onAvatarChanged);
+  }
+
+  @override
+  void dispose() {
+    AvatarStateManager().removeListener(_onAvatarChanged);
+    super.dispose();
+  }
+
+  void _onAvatarChanged() {
+    // Update avatar when global state changes
+    if (mounted && _currentUserId != null) {
+      final currentAvatar = AvatarStateManager().currentAvatarUrl;
+      final currentUser = AvatarStateManager().currentUserId;
+
+      // Only update if it's for the current user
+      if (currentUser == _currentUserId && currentAvatar != avatarUrl) {
+        setState(() {
+          avatarUrl = currentAvatar;
+        });
+        debugPrint('ProgressTrackingScreen: Avatar updated from state manager');
+      }
+    }
   }
 
   Future<void> _loadProgressData() async {
@@ -81,12 +112,19 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
 
       if (user != null) {
         setState(() {
+          _currentUserId = userId;
           studentName = user.name;
+          avatarUrl = user.avatarUrl;
+          avatarInitials = user.avatarInitials;
+          avatarColor = user.avatarColor;
+          currentStreak = user.currentStreak;
           totalPoints = user.totalPoints;
           currentLevel = user.currentLevel;
-          currentStreak = user.currentStreak;
           quizzesCompleted = user.quizzesCompleted;
-          averageScore = user.averageScore;
+          averageScore = user.averageScore.toDouble();
+
+          // Initialize global avatar state
+          AvatarStateManager().initializeAvatar(user.avatarUrl, userId);
 
           activityData = activity;
 
@@ -313,30 +351,63 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
           ),
           child: Row(
             children: [
-              Container(
-                width: 20.w,
-                height: 20.w,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: theme.colorScheme.onPrimary.withOpacity(0.3),
-                    width: 3,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+              GestureDetector(
+                onTap: () async {
+                  final userId = await SupabaseService.instance
+                      .getCurrentUserId();
+                  if (userId != null && mounted) {
+                    await showAvatarPicker(
+                      context: context,
+                      userId: userId,
+                      onAvatarUploaded: (newAvatarUrl) {
+                        // Avatar is automatically updated via AvatarStateManager
+                        // No need to manually setState or reload data
+                        debugPrint(
+                          'Progress: Avatar upload callback received: $newAvatarUrl',
+                        );
+                      },
+                    );
+                  }
+                },
+                child: Stack(
+                  children: [
+                    ResponsiveUserAvatar(
+                      avatarUrl: avatarUrl,
+                      initials: avatarInitials,
+                      backgroundColor: avatarColor,
+                      sizePercentage: 20,
+                      borderWidth: 3,
+                      borderColor: theme.colorScheme.onPrimary.withOpacity(0.3),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 6.w,
+                        height: 6.w,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.secondary,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.onPrimary,
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 3.w,
+                        ),
+                      ),
                     ),
                   ],
-                ),
-                child: Center(
-                  child: CustomIconWidget(
-                    iconName: 'person',
-                    color: theme.colorScheme.primary,
-                    size: 40,
-                  ),
                 ),
               ),
               SizedBox(width: 4.w),

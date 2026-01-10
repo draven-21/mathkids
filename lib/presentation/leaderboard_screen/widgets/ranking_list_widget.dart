@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
+import '../../../widgets/user_avatar_widget.dart';
+
 /// Ranking list widget displaying students from 4th place onwards with modern card design
 class RankingListWidget extends StatelessWidget {
   final List<Map<String, dynamic>> rankings;
@@ -92,48 +94,12 @@ class RankingListWidget extends StatelessWidget {
           SizedBox(width: 4.w),
 
           // Avatar with layered circular design
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              // Outer ring
-              Container(
-                width: 14.w,
-                height: 14.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: (user["color"] as Color).withOpacity(0.3),
-                    width: 2,
-                  ),
-                ),
-              ),
-              // Avatar circle
-              Container(
-                width: 12.5.w,
-                height: 12.5.w,
-                decoration: BoxDecoration(
-                  color: user["color"] as Color,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    user["avatar"] as String,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14.sp,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          LeaderboardAvatarWidget(
+            avatarUrl: user["avatarUrl"] as String?,
+            initials: user["avatar"] as String,
+            backgroundColor: user["color"] as Color,
+            rank: user["rank"] as int,
+            isCurrentUser: isCurrentUser,
           ),
 
           SizedBox(width: 4.w),

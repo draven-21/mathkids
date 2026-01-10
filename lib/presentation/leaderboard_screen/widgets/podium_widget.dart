@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
+import '../../../widgets/user_avatar_widget.dart';
 
 /// Podium widget displaying top 3 performers with modern design inspired by reference image
 class PodiumWidget extends StatelessWidget {
@@ -210,43 +211,12 @@ class PodiumWidget extends StatelessWidget {
             ),
 
             // Main avatar circle with theme-aware border
-            Container(
-              width: avatarSize,
-              height: avatarSize,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: borderColor, width: isFirst ? 4 : 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.black.withOpacity(0.5)
-                        : Colors.black.withOpacity(0.15),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Container(
-                  width: avatarSize - 4.w,
-                  height: avatarSize - 4.w,
-                  decoration: BoxDecoration(
-                    color: user["color"] as Color,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      user["avatar"] as String,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: isFirst ? 24.sp : 18.sp,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            PodiumAvatarWidget(
+              avatarUrl: user["avatarUrl"] as String?,
+              initials: user["avatar"] as String,
+              backgroundColor: user["color"] as Color,
+              borderColor: borderColor,
+              isFirst: isFirst,
             ),
 
             // Crown/Trophy icon for 1st place

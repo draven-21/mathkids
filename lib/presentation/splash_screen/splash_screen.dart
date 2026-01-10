@@ -1,0 +1,244 @@
+import 'package:flutter/material.dart';
+import 'package:sizer/sizer.dart';
+
+import 'widgets/animated_mascot_widget.dart';
+import 'widgets/animated_title_widget.dart';
+import 'widgets/particle_background_widget.dart';
+import '../../widgets/smooth_page_transition.dart';
+import '../name_entry_screen/name_entry_screen.dart';
+
+/// Modern splash screen with polished animations and smooth transitions
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({Key? key}) : super(key: key);
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _mainController;
+  late AnimationController _shimmerController;
+  late AnimationController _pulseController;
+
+  late Animation<double> _fadeInAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _shimmerAnimation;
+  late Animation<double> _pulseAnimation;
+
+  bool _navigated = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Main animation controller for orchestrating entrance
+    _mainController = AnimationController(
+      duration: const Duration(milliseconds: 2500),
+      vsync: this,
+    );
+
+    // Shimmer effect controller
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
+
+    // Pulse controller for subtle breathing effect
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1800),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    // Fade in animation (0-1)
+    _fadeInAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
+      ),
+    );
+
+    // Scale animation with overshoot
+    _scaleAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.2, 0.7, curve: Curves.elasticOut),
+      ),
+    );
+
+    // Slide up animation
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _mainController,
+            curve: const Interval(0.3, 0.8, curve: Curves.easeOutCubic),
+          ),
+        );
+
+    // Shimmer animation
+    _shimmerAnimation = Tween<double>(
+      begin: -1.0,
+      end: 2.0,
+    ).animate(_shimmerController);
+
+    // Pulse animation
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Start animations
+    _startAnimations();
+  }
+
+  void _startAnimations() async {
+    // Start main animation
+    await _mainController.forward();
+
+    // Wait for animation to complete and then navigate
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (mounted && !_navigated) {
+      _navigated = true;
+      // Use custom smooth transition
+      Navigator.of(context).pushReplacement(
+        SmoothPageTransition(
+          page: const NameEntryScreen(),
+          duration: const Duration(milliseconds: 800),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _mainController.dispose();
+    _shimmerController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      body: Stack(
+        children: [
+          // Animated particle background
+          const ParticleBackgroundWidget(),
+
+          // Main content
+          SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Spacer(flex: 2),
+
+                  // Animated mascot with advanced effects
+                  AnimatedBuilder(
+                    animation: Listenable.merge([
+                      _fadeInAnimation,
+                      _scaleAnimation,
+                      _pulseAnimation,
+                    ]),
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _fadeInAnimation.value,
+                        child: Transform.scale(
+                          scale: _scaleAnimation.value * _pulseAnimation.value,
+                          child: const AnimatedMascotWidget(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: 6.h),
+
+                  // Animated title with shimmer effect
+                  AnimatedBuilder(
+                    animation: Listenable.merge([
+                      _fadeInAnimation,
+                      _slideAnimation,
+                      _shimmerAnimation,
+                    ]),
+                    builder: (context, child) {
+                      return SlideTransition(
+                        position: _slideAnimation,
+                        child: Opacity(
+                          opacity: _fadeInAnimation.value,
+                          child: AnimatedTitleWidget(
+                            shimmerValue: _shimmerAnimation.value,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: 3.h),
+
+                  // Animated tagline
+                  AnimatedBuilder(
+                    animation: _fadeInAnimation,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: (_fadeInAnimation.value - 0.3).clamp(0.0, 1.0),
+                        child: Text(
+                          'Where Learning Meets Fun',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    },
+                  ),
+
+                  const Spacer(flex: 3),
+
+                  // Loading indicator
+                  AnimatedBuilder(
+                    animation: _fadeInAnimation,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: (_fadeInAnimation.value - 0.5).clamp(0.0, 1.0),
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              width: 8.w,
+                              height: 8.w,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  theme.colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              'Loading...',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: 6.h),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
