@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
 
-/// User statistics widget displaying current user's performance metrics
+/// Modern user statistics widget with clean card design
 class UserStatsWidget extends StatelessWidget {
   final int quizzesCompleted;
   final int averageScore;
@@ -22,17 +21,16 @@ class UserStatsWidget extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
+      margin: EdgeInsets.all(4.w),
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: theme.colorScheme.outline, width: 2),
-        ),
+        borderRadius: BorderRadius.circular(4.w),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.shadow,
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -41,28 +39,37 @@ class UserStatsWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Section title
+            // Section title with icon
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CustomIconWidget(
-                  iconName: 'bar_chart',
-                  size: 5.w,
-                  color: theme.colorScheme.primary,
+                Container(
+                  padding: EdgeInsets.all(2.w),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(2.w),
+                  ),
+                  child: CustomIconWidget(
+                    iconName: 'bar_chart',
+                    size: 5.w,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
                 SizedBox(width: 2.w),
                 Text(
                   'Your Statistics',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
                     color: theme.colorScheme.onSurface,
+                    fontSize: 16.sp,
                   ),
                 ),
               ],
             ),
 
-            SizedBox(height: 2.h),
+            SizedBox(height: 2.5.h),
 
-            // Statistics row
+            // Statistics row with modern cards
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -71,7 +78,7 @@ class UserStatsWidget extends StatelessWidget {
                   'Quizzes',
                   '$quizzesCompleted',
                   'quiz',
-                  const Color(0xFF4A90E2),
+                  theme.colorScheme.primary,
                 ),
                 _buildStatCard(
                   theme,
@@ -83,9 +90,9 @@ class UserStatsWidget extends StatelessWidget {
                 _buildStatCard(
                   theme,
                   'Streak',
-                  '$currentStreak days',
+                  '$currentStreak',
                   'local_fire_department',
-                  const Color(0xFFF39C12),
+                  theme.colorScheme.secondary,
                 ),
               ],
             ),
@@ -95,7 +102,7 @@ class UserStatsWidget extends StatelessWidget {
     );
   }
 
-  /// Builds individual stat card
+  /// Builds individual stat card with modern design
   Widget _buildStatCard(
     ThemeData theme,
     String label,
@@ -105,34 +112,67 @@ class UserStatsWidget extends StatelessWidget {
   ) {
     return Expanded(
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 1.w),
-        padding: EdgeInsets.all(3.w),
+        margin: EdgeInsets.symmetric(horizontal: 1.5.w),
+        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.h),
         decoration: BoxDecoration(
-          color: accentColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(2.w),
-          border: Border.all(color: accentColor, width: 2),
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(3.w),
+          border: Border.all(color: accentColor.withOpacity(0.2), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            CustomIconWidget(iconName: iconName, size: 6.w, color: accentColor),
+            // Icon with colored background
+            Container(
+              width: 12.w,
+              height: 12.w,
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(3.w),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: CustomIconWidget(
+                iconName: iconName,
+                size: 6.w,
+                color: Colors.white,
+              ),
+            ),
 
-            SizedBox(height: 1.h),
+            SizedBox(height: 1.5.h),
 
+            // Value
             Text(
               value,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: accentColor,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: theme.colorScheme.onSurface,
+                fontSize: 20.sp,
+                height: 1,
               ),
-              textAlign: TextAlign.center,
             ),
 
             SizedBox(height: 0.5.h),
 
+            // Label
             Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                fontSize: 10.sp,
+                letterSpacing: 0.5,
               ),
               textAlign: TextAlign.center,
             ),

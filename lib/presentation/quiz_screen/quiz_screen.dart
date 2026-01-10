@@ -1,9 +1,11 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
 
 import '../../models/quiz_result_model.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/animated_math_background.dart';
 import './widgets/answer_button_widget.dart';
 import './widgets/celebration_widget.dart';
 import './widgets/progress_bar_widget.dart';
@@ -29,7 +31,9 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   late AnimationController _timerController;
   late AnimationController _celebrationController;
 
-  final List<Map<String, dynamic>> _questions = [
+  List<Map<String, dynamic>> _filteredQuestions = [];
+
+  final List<Map<String, dynamic>> _allQuestions = [
     {
       "question": "5 + 3 = ?",
       "answers": ["6", "7", "8", "9"],
@@ -108,6 +112,110 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     _timerController.addStatusListener(_onTimerComplete);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get operation type from route arguments
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    _operationType = args?['operation'] as String?;
+
+    // Filter questions based on operation type
+    _filterQuestions();
+  }
+
+  void _filterQuestions() {
+    if (_operationType != null && _operationType != 'mixed') {
+      // Filter for specific operation
+      _filteredQuestions = _allQuestions
+          .where((q) => q['operation'] == _operationType)
+          .toList();
+
+      // If not enough questions, generate more
+      if (_filteredQuestions.length < 10) {
+        _filteredQuestions.addAll(
+          _generateQuestions(_operationType!, 10 - _filteredQuestions.length),
+        );
+      }
+    } else {
+      // Use all questions for mixed mode
+      _filteredQuestions = List.from(_allQuestions);
+    }
+
+    // Shuffle questions
+    _filteredQuestions.shuffle(Random());
+
+    // Take only 10 questions
+    _filteredQuestions = _filteredQuestions.take(10).toList();
+  }
+
+  List<Map<String, dynamic>> _generateQuestions(String operation, int count) {
+    final random = Random();
+    final questions = <Map<String, dynamic>>[];
+
+    for (int i = 0; i < count; i++) {
+      int num1, num2, answer;
+      String question;
+
+      switch (operation) {
+        case 'addition':
+          num1 = random.nextInt(20) + 1;
+          num2 = random.nextInt(20) + 1;
+          answer = num1 + num2;
+          question = '$num1 + $num2 = ?';
+          break;
+        case 'subtraction':
+          num1 = random.nextInt(30) + 10;
+          num2 = random.nextInt(num1);
+          answer = num1 - num2;
+          question = '$num1 − $num2 = ?';
+          break;
+        case 'multiplication':
+          num1 = random.nextInt(10) + 2;
+          num2 = random.nextInt(10) + 2;
+          answer = num1 * num2;
+          question = '$num1 × $num2 = ?';
+          break;
+        case 'division':
+          num2 = random.nextInt(9) + 2;
+          answer = random.nextInt(10) + 2;
+          num1 = num2 * answer;
+          question = '$num1 ÷ $num2 = ?';
+          break;
+        default:
+          num1 = random.nextInt(20) + 1;
+          num2 = random.nextInt(20) + 1;
+          answer = num1 + num2;
+          question = '$num1 + $num2 = ?';
+      }
+
+      // Generate wrong answers
+      final answers = <String>[];
+      answers.add(answer.toString());
+
+      while (answers.length < 4) {
+        final wrongAnswer = answer + random.nextInt(10) - 5;
+        if (wrongAnswer > 0 &&
+            wrongAnswer != answer &&
+            !answers.contains(wrongAnswer.toString())) {
+          answers.add(wrongAnswer.toString());
+        }
+      }
+
+      answers.shuffle(random);
+      final correctIndex = answers.indexOf(answer.toString());
+
+      questions.add({
+        'question': question,
+        'answers': answers,
+        'correctIndex': correctIndex,
+        'operation': operation,
+      });
+    }
+
+    return questions;
+  }
+
   void _onTimerComplete(AnimationStatus status) {
     if (status == AnimationStatus.completed && !_isAnswering) {
       _handleTimeout();
@@ -115,7 +223,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   }
 
   void _handleTimeout() {
-    if (_currentQuestionIndex < _questions.length - 1) {
+    if (_currentQuestionIndex < _filteredQuestions.length - 1) {
       setState(() {
         _currentQuestionIndex++;
         _streak = 0;
@@ -132,15 +240,8 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
 
     setState(() => _isAnswering = true);
 
-    final currentQuestion = _questions[_currentQuestionIndex];
+    final currentQuestion = _filteredQuestions[_currentQuestionIndex];
     final isCorrect = selectedIndex == currentQuestion["correctIndex"];
-
-    // Track operation type (use first question's operation or 'mixed' if varied)
-    if (_operationType == null) {
-      _operationType = currentQuestion["operation"] as String?;
-    } else if (_operationType != currentQuestion["operation"]) {
-      _operationType = 'mixed';
-    }
 
     if (isCorrect) {
       setState(() {
@@ -169,10 +270,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       await Future.delayed(const Duration(milliseconds: 800));
     }
 
-    if (_currentQuestionIndex < _questions.length - 1) {
+    if (_currentQuestionIndex < _filteredQuestions.length - 1) {
       setState(() {
         _currentQuestionIndex++;
         _isAnswering = false;
+        _showCelebration = false;
         _timerController.reset();
         _timerController.forward();
       });
@@ -192,7 +294,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     final currentScore = prefs.getInt('total_score') ?? 0;
     await prefs.setInt('total_score', currentScore + _score);
     await prefs.setInt('last_quiz_score', _correctAnswers);
-    await prefs.setInt('last_quiz_total', _questions.length);
+    await prefs.setInt('last_quiz_total', _filteredQuestions.length);
     await prefs.setInt('last_quiz_time', timeTaken);
 
     // Save to Supabase
@@ -201,7 +303,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       final quizResult = QuizResultModel(
         userId: userId,
         score: _score,
-        totalQuestions: _questions.length,
+        totalQuestions: _filteredQuestions.length,
         correctAnswers: _correctAnswers,
         pointsEarned: pointsEarned,
         timeTakenSeconds: timeTaken,
@@ -216,10 +318,9 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       '/quiz-results-screen',
       arguments: {
         'score': _score,
-        'totalQuestions': _questions.length,
+        'totalQuestions': _filteredQuestions.length,
         'correctAnswers': _correctAnswers,
         'timeTaken': timeTaken,
-        'pointsEarned': pointsEarned,
       },
     );
   }
@@ -273,7 +374,17 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final currentQuestion = _questions[_currentQuestionIndex];
+
+    if (_filteredQuestions.isEmpty) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Center(
+          child: CircularProgressIndicator(color: theme.colorScheme.primary),
+        ),
+      );
+    }
+
+    final currentQuestion = _filteredQuestions[_currentQuestionIndex];
 
     return PopScope(
       canPop: false,
@@ -287,64 +398,80 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       },
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        body: SafeArea(
-          child: Stack(
-            children: [
-              Column(
+        body: Stack(
+          children: [
+            // Animated math background
+            Positioned.fill(
+              child: AnimatedMathBackground(
+                symbolColor: theme.colorScheme.primary,
+                opacity: 0.03,
+                symbolCount: 15,
+                animationSpeed: 0.4,
+              ),
+            ),
+
+            // Main content
+            SafeArea(
+              child: Stack(
                 children: [
-                  ProgressBarWidget(
-                    currentQuestion: _currentQuestionIndex + 1,
-                    totalQuestions: _questions.length,
-                    timerAnimation: _timerController,
-                  ),
-                  ScoreDisplayWidget(score: _score, streak: _streak),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 24,
+                  Column(
+                    children: [
+                      ProgressBarWidget(
+                        currentQuestion: _currentQuestionIndex + 1,
+                        totalQuestions: _filteredQuestions.length,
+                        timerAnimation: _timerController,
                       ),
-                      child: Column(
-                        children: [
-                          QuestionDisplayWidget(
-                            question: currentQuestion["question"] as String,
-                            questionNumber: _currentQuestionIndex + 1,
+                      ScoreDisplayWidget(score: _score, streak: _streak),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 24,
                           ),
-                          const SizedBox(height: 32),
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
-                                  childAspectRatio: 1.5,
-                                ),
-                            itemCount:
-                                (currentQuestion["answers"] as List).length,
-                            itemBuilder: (context, index) {
-                              return AnswerButtonWidget(
-                                answer:
-                                    (currentQuestion["answers"] as List)[index]
-                                        as String,
-                                onTap: _isAnswering
-                                    ? null
-                                    : () => _handleAnswer(index),
-                                index: index,
-                              );
-                            },
+                          child: Column(
+                            children: [
+                              QuestionDisplayWidget(
+                                question: currentQuestion["question"] as String,
+                                questionNumber: _currentQuestionIndex + 1,
+                              ),
+                              const SizedBox(height: 32),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      crossAxisSpacing: 16,
+                                      mainAxisSpacing: 16,
+                                      childAspectRatio: 1.5,
+                                    ),
+                                itemCount:
+                                    (currentQuestion["answers"] as List).length,
+                                itemBuilder: (context, index) {
+                                  return AnswerButtonWidget(
+                                    answer:
+                                        (currentQuestion["answers"]
+                                                as List)[index]
+                                            as String,
+                                    onTap: _isAnswering
+                                        ? null
+                                        : () => _handleAnswer(index),
+                                    index: index,
+                                  );
+                                },
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
+                  if (_showCelebration)
+                    CelebrationWidget(animation: _celebrationController),
                 ],
               ),
-              if (_showCelebration)
-                CelebrationWidget(animation: _celebrationController),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

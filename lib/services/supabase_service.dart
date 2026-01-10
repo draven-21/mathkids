@@ -26,8 +26,14 @@ class SupabaseService {
   static Future<void> initialize() async {
     // Try to get from environment variables first (for production)
     if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-      supabaseUrl = const String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-      supabaseAnonKey = const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+      supabaseUrl = const String.fromEnvironment(
+        'SUPABASE_URL',
+        defaultValue: '',
+      );
+      supabaseAnonKey = const String.fromEnvironment(
+        'SUPABASE_ANON_KEY',
+        defaultValue: '',
+      );
     }
 
     // If still empty, try to read from env.json file
@@ -39,18 +45,26 @@ class SupabaseService {
         supabaseAnonKey = envData['SUPABASE_ANON_KEY'] ?? '';
         debugPrint('Loaded Supabase credentials from env.json');
         debugPrint('URL from env.json: $supabaseUrl');
-        debugPrint('Key from env.json: ${supabaseAnonKey.isNotEmpty ? 'Present' : 'Missing'}');
+        debugPrint(
+          'Key from env.json: ${supabaseAnonKey.isNotEmpty ? 'Present' : 'Missing'}',
+        );
       } catch (e) {
         debugPrint('Could not load env.json: $e');
-        debugPrint('Make sure env.json is in the root directory and added to pubspec.yaml assets');
+        debugPrint(
+          'Make sure env.json is in the root directory and added to pubspec.yaml assets',
+        );
       }
     }
 
     debugPrint('Supabase URL: ${supabaseUrl.isNotEmpty ? 'Set' : 'Not set'}');
-    debugPrint('Supabase Anon Key: ${supabaseAnonKey.isNotEmpty ? 'Set' : 'Not set'}');
+    debugPrint(
+      'Supabase Anon Key: ${supabaseAnonKey.isNotEmpty ? 'Set' : 'Not set'}',
+    );
 
     if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-      debugPrint('WARNING: Supabase credentials not found. App will run in offline mode.');
+      debugPrint(
+        'WARNING: Supabase credentials not found. App will run in offline mode.',
+      );
       debugPrint('To fix this, either:');
       debugPrint('1. Run with dart-define flags');
       debugPrint('2. Ensure env.json exists in root directory');
@@ -113,6 +127,29 @@ class SupabaseService {
     }
   }
 
+  /// Check if a name is available (not already taken by another user)
+  Future<bool> isNameAvailable(String name) async {
+    if (!isAvailable) {
+      // In offline mode, assume name is available
+      return true;
+    }
+
+    try {
+      final response = await client
+          .from('users')
+          .select('id')
+          .ilike('name', name)
+          .limit(1);
+
+      // If response is empty, name is available
+      return response.isEmpty;
+    } catch (e) {
+      debugPrint('Error checking name availability: $e');
+      // On error, assume name is available to not block user
+      return true;
+    }
+  }
+
   Future<UserModel?> createUser(String name) async {
     try {
       if (!isAvailable) {
@@ -156,10 +193,10 @@ class SupabaseService {
       final user = UserModel.fromJson(response);
       await setCurrentUserId(user.id);
       debugPrint('User created successfully: ${user.id}');
-      
+
       // Initialize skill progress for all operations
       await _initializeSkillProgress(user.id);
-      
+
       return user;
     } catch (e) {
       debugPrint('Error creating user: $e');
@@ -209,8 +246,16 @@ class SupabaseService {
 
   String _generateRandomColor() {
     final colors = [
-      '#4A90E2', '#F39C12', '#27AE60', '#9B59B6', '#E74C3C',
-      '#3498DB', '#1ABC9C', '#E91E63', '#FF5722', '#607D8B',
+      '#4A90E2',
+      '#F39C12',
+      '#27AE60',
+      '#9B59B6',
+      '#E74C3C',
+      '#3498DB',
+      '#1ABC9C',
+      '#E91E63',
+      '#FF5722',
+      '#607D8B',
     ];
     return colors[DateTime.now().millisecondsSinceEpoch % colors.length];
   }
@@ -273,7 +318,7 @@ class SupabaseService {
 
       final today = DateTime.now();
       final lastQuizDate = user.lastQuizDate;
-      
+
       int newStreak = user.currentStreak;
       if (lastQuizDate == null) {
         newStreak = 1;
@@ -290,16 +335,23 @@ class SupabaseService {
         }
       }
 
-      await client.from('users').update({
-        'total_points': user.totalPoints + result.pointsEarned,
-        'quizzes_completed': user.quizzesCompleted + 1,
-        'total_correct_answers': user.totalCorrectAnswers + result.correctAnswers,
-        'total_questions_attempted': user.totalQuestionsAttempted + result.totalQuestions,
-        'current_streak': newStreak,
-        'longest_streak': newStreak > user.longestStreak ? newStreak : user.longestStreak,
-        'last_quiz_date': today.toIso8601String().split('T')[0],
-        'last_activity_date': today.toIso8601String(),
-      }).eq('id', result.userId);
+      await client
+          .from('users')
+          .update({
+            'total_points': user.totalPoints + result.pointsEarned,
+            'quizzes_completed': user.quizzesCompleted + 1,
+            'total_correct_answers':
+                user.totalCorrectAnswers + result.correctAnswers,
+            'total_questions_attempted':
+                user.totalQuestionsAttempted + result.totalQuestions,
+            'current_streak': newStreak,
+            'longest_streak': newStreak > user.longestStreak
+                ? newStreak
+                : user.longestStreak,
+            'last_quiz_date': today.toIso8601String().split('T')[0],
+            'last_activity_date': today.toIso8601String(),
+          })
+          .eq('id', result.userId);
     } catch (e) {
       debugPrint('Error updating user stats: $e');
     }
@@ -323,14 +375,19 @@ class SupabaseService {
       if (existing != null) {
         final newAttempted = (existing['total_attempted'] as int) + attempted;
         final newCorrect = (existing['total_correct'] as int) + correct;
-        final mastery = newAttempted > 0 ? (newCorrect / newAttempted) * 100 : 0.0;
+        final mastery = newAttempted > 0
+            ? (newCorrect / newAttempted) * 100
+            : 0.0;
 
-        await client.from('skill_progress').update({
-          'total_attempted': newAttempted,
-          'total_correct': newCorrect,
-          'mastery_percentage': mastery,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', existing['id']);
+        await client
+            .from('skill_progress')
+            .update({
+              'total_attempted': newAttempted,
+              'total_correct': newCorrect,
+              'mastery_percentage': mastery,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', existing['id']);
       } else {
         final mastery = attempted > 0 ? (correct / attempted) * 100 : 0.0;
         await client.from('skill_progress').insert({
@@ -349,7 +406,7 @@ class SupabaseService {
   Future<void> _updateDailyActivity(QuizResultModel result) async {
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
-      
+
       final existing = await client
           .from('daily_activity')
           .select()
@@ -361,13 +418,17 @@ class SupabaseService {
         final quizzes = (existing['quizzes_completed'] as int) + 1;
         final points = (existing['points_earned'] as int) + result.pointsEarned;
         final currentAvg = existing['average_score'] as num;
-        final newAvg = ((currentAvg * (quizzes - 1)) + result.percentage) / quizzes;
+        final newAvg =
+            ((currentAvg * (quizzes - 1)) + result.percentage) / quizzes;
 
-        await client.from('daily_activity').update({
-          'quizzes_completed': quizzes,
-          'points_earned': points,
-          'average_score': newAvg,
-        }).eq('id', existing['id']);
+        await client
+            .from('daily_activity')
+            .update({
+              'quizzes_completed': quizzes,
+              'points_earned': points,
+              'average_score': newAvg,
+            })
+            .eq('id', existing['id']);
       } else {
         await client.from('daily_activity').insert({
           'user_id': result.userId,
@@ -382,7 +443,10 @@ class SupabaseService {
     }
   }
 
-  Future<List<QuizResultModel>> getUserQuizHistory(String userId, {int limit = 20}) async {
+  Future<List<QuizResultModel>> getUserQuizHistory(
+    String userId, {
+    int limit = 20,
+  }) async {
     try {
       final response = await client
           .from('quiz_results')
@@ -407,7 +471,7 @@ class SupabaseService {
   Future<List<LeaderboardEntryModel>> getLeaderboard({int limit = 50}) async {
     try {
       final currentUserId = await getCurrentUserId();
-      
+
       final response = await client
           .from('leaderboard')
           .select()
@@ -415,7 +479,12 @@ class SupabaseService {
           .limit(limit);
 
       return (response as List)
-          .map((json) => LeaderboardEntryModel.fromJson(json, currentUserId: currentUserId))
+          .map(
+            (json) => LeaderboardEntryModel.fromJson(
+              json,
+              currentUserId: currentUserId,
+            ),
+          )
           .toList();
     } catch (e) {
       debugPrint('Error getting leaderboard: $e');
@@ -465,10 +534,13 @@ class SupabaseService {
   // DAILY ACTIVITY
   // ============================================================
 
-  Future<Map<DateTime, int>> getUserActivityMap(String userId, {int days = 30}) async {
+  Future<Map<DateTime, int>> getUserActivityMap(
+    String userId, {
+    int days = 30,
+  }) async {
     try {
       final startDate = DateTime.now().subtract(Duration(days: days));
-      
+
       final response = await client
           .from('daily_activity')
           .select()
@@ -500,9 +572,7 @@ class SupabaseService {
         return _getDefaultWeeklyScores();
       }
 
-      return response
-          .map((json) => WeeklyScoreModel.fromJson(json))
-          .toList();
+      return response.map((json) => WeeklyScoreModel.fromJson(json)).toList();
     } catch (e) {
       debugPrint('Error getting weekly scores: $e');
       return _getDefaultWeeklyScores();
@@ -510,9 +580,15 @@ class SupabaseService {
   }
 
   List<WeeklyScoreModel> _getDefaultWeeklyScores() {
-    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        .map((day) => WeeklyScoreModel(day: day, averageScore: 0))
-        .toList();
+    return [
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ].map((day) => WeeklyScoreModel(day: day, averageScore: 0)).toList();
   }
 
   // ============================================================
@@ -563,10 +639,12 @@ class SupabaseService {
 
         switch (achievement.requirementType) {
           case 'quizzes_completed':
-            shouldUnlock = user.quizzesCompleted >= achievement.requirementValue;
+            shouldUnlock =
+                user.quizzesCompleted >= achievement.requirementValue;
             break;
           case 'streak':
-            shouldUnlock = user.currentStreak >= achievement.requirementValue ||
+            shouldUnlock =
+                user.currentStreak >= achievement.requirementValue ||
                 user.longestStreak >= achievement.requirementValue;
             break;
           case 'points':

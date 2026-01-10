@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
@@ -8,15 +9,17 @@ import '../../models/skill_progress_model.dart';
 import '../../models/achievement_model.dart';
 import '../../models/daily_activity_model.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/animated_math_background.dart';
 import '../../widgets/custom_icon_widget.dart';
+import '../../widgets/glass_card.dart';
 import './widgets/achievement_badge_widget.dart';
 import './widgets/progress_chart_widget.dart';
 import './widgets/skill_progress_widget.dart';
 import './widgets/stats_card_widget.dart';
 import './widgets/weekly_activity_widget.dart';
 
-/// Progress Tracking Screen - Displays comprehensive learning statistics
-/// and achievements for elementary students
+/// Progress Tracking Screen - Modern design with animated background
+/// Displays comprehensive learning statistics and achievements
 class ProgressTrackingScreen extends StatefulWidget {
   const ProgressTrackingScreen({Key? key}) : super(key: key);
 
@@ -26,7 +29,7 @@ class ProgressTrackingScreen extends StatefulWidget {
 
 class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
   bool _isLoading = true;
-  
+
   // User data from Supabase
   String studentName = "";
   int totalPoints = 0;
@@ -63,14 +66,18 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
         return;
       }
 
-      final progressData = await SupabaseService.instance.getUserProgressData(userId);
+      final progressData = await SupabaseService.instance.getUserProgressData(
+        userId,
+      );
 
       final user = progressData['user'] as UserModel?;
       final skills = progressData['skills'] as List<SkillProgressModel>;
       final activity = progressData['activityMap'] as Map<DateTime, int>;
       final weekly = progressData['weeklyScores'] as List<WeeklyScoreModel>;
-      final userAchievements = progressData['userAchievements'] as List<UserAchievementModel>;
-      final allAchievements = progressData['allAchievements'] as List<AchievementModel>;
+      final userAchievements =
+          progressData['userAchievements'] as List<UserAchievementModel>;
+      final allAchievements =
+          progressData['allAchievements'] as List<AchievementModel>;
 
       if (user != null) {
         setState(() {
@@ -83,10 +90,9 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
 
           activityData = activity;
 
-          weeklyScores = weekly.map((w) => {
-            "day": w.day,
-            "score": w.averageScore.round(),
-          }).toList();
+          weeklyScores = weekly
+              .map((w) => {"day": w.day, "score": w.averageScore.round()})
+              .toList();
 
           // Ensure we have all 7 days
           if (weeklyScores.isEmpty) {
@@ -101,25 +107,52 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
             ];
           }
 
-          skillsData = skills.map((s) => {
-            "name": s.skillName[0].toUpperCase() + s.skillName.substring(1),
-            "icon": s.iconName,
-            "progress": s.progress,
-            "color": s.skillColor,
-          }).toList();
+          skillsData = skills
+              .map(
+                (s) => {
+                  "name":
+                      s.skillName[0].toUpperCase() + s.skillName.substring(1),
+                  "icon": s.iconName,
+                  "progress": s.progress,
+                  "color": s.skillColor,
+                },
+              )
+              .toList();
 
           // If no skills data, show defaults with 0 progress
           if (skillsData.isEmpty) {
             skillsData = [
-              {"name": "Addition", "icon": "add_circle", "progress": 0.0, "color": const Color(0xFF4A90E2)},
-              {"name": "Subtraction", "icon": "remove_circle", "progress": 0.0, "color": const Color(0xFFF39C12)},
-              {"name": "Multiplication", "icon": "close", "progress": 0.0, "color": const Color(0xFF27AE60)},
-              {"name": "Division", "icon": "horizontal_rule", "progress": 0.0, "color": const Color(0xFF9B59B6)},
+              {
+                "name": "Addition",
+                "icon": "add_circle",
+                "progress": 0.0,
+                "color": const Color(0xFF4A90E2),
+              },
+              {
+                "name": "Subtraction",
+                "icon": "remove_circle",
+                "progress": 0.0,
+                "color": const Color(0xFFF39C12),
+              },
+              {
+                "name": "Multiplication",
+                "icon": "close",
+                "progress": 0.0,
+                "color": const Color(0xFF27AE60),
+              },
+              {
+                "name": "Division",
+                "icon": "horizontal_rule",
+                "progress": 0.0,
+                "color": const Color(0xFF9B59B6),
+              },
             ];
           }
 
           // Build achievements data
-          final unlockedIds = userAchievements.map((a) => a.achievementId).toSet();
+          final unlockedIds = userAchievements
+              .map((a) => a.achievementId)
+              .toSet();
           achievementsData = allAchievements.map((a) {
             final userAchievement = userAchievements.firstWhere(
               (ua) => ua.achievementId == a.id,
@@ -136,7 +169,9 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
               "description": a.description,
               "icon": a.iconName,
               "color": a.badgeColor,
-              "unlockDate": isUnlocked ? DateFormat('MMM d, yyyy').format(userAchievement.unlockedAt) : "",
+              "unlockDate": isUnlocked
+                  ? DateFormat('MMM d, yyyy').format(userAchievement.unlockedAt)
+                  : "",
               "isUnlocked": isUnlocked,
             };
           }).toList();
@@ -173,128 +208,217 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             } else {
-              Navigator.of(context, rootNavigator: true)
-                  .pushReplacementNamed('/main-menu-screen');
+              Navigator.of(
+                context,
+                rootNavigator: true,
+              ).pushReplacementNamed('/main-menu-screen');
             }
           },
         ),
       ),
-      body: SafeArea(
-        child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
-            : SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.all(4.w),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStudentHeader(theme),
-                SizedBox(height: 3.h),
-                _buildStatsOverview(theme),
-                SizedBox(height: 3.h),
-                WeeklyActivityWidget(
-                  activityData: activityData,
-                  currentStreak: currentStreak,
-                ),
-                SizedBox(height: 3.h),
-                _buildSkillsMastery(theme),
-                SizedBox(height: 3.h),
-                ProgressChartWidget(weeklyScores: weeklyScores),
-                SizedBox(height: 3.h),
-                _buildAchievements(theme),
-                SizedBox(height: 3.h),
-                _buildMotivationalMessage(theme),
-                SizedBox(height: 2.h),
-              ],
+      body: Stack(
+        children: [
+          // Animated math background
+          Positioned.fill(
+            child: AnimatedMathBackground(
+              symbolColor: theme.colorScheme.primary,
+              opacity: 0.04,
+              symbolCount: 20,
+              animationSpeed: 0.5,
             ),
           ),
-        ),
+
+          // Main content
+          SafeArea(
+            child: _isLoading
+                ? Center(
+                    child: GlassCard(
+                      padding: EdgeInsets.all(5.w),
+                      child: CircularProgressIndicator(
+                        color: theme.colorScheme.primary,
+                        strokeWidth: 3,
+                      ),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: Padding(
+                      padding: EdgeInsets.all(4.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildStudentHeader(theme),
+                          SizedBox(height: 3.h),
+                          _buildStatsOverview(theme),
+                          SizedBox(height: 3.h),
+                          WeeklyActivityWidget(
+                            activityData: activityData,
+                            currentStreak: currentStreak,
+                          ),
+                          SizedBox(height: 3.h),
+                          _buildSkillsMastery(theme),
+                          SizedBox(height: 3.h),
+                          ProgressChartWidget(weeklyScores: weeklyScores),
+                          SizedBox(height: 3.h),
+                          _buildAchievements(theme),
+                          SizedBox(height: 3.h),
+                          _buildMotivationalMessage(theme),
+                          SizedBox(height: 2.h),
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStudentHeader(ThemeData theme) {
-    return Container(
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.primary.withValues(alpha: 0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 20.w,
-            height: 20.w,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              shape: BoxShape.circle,
-              border: Border.all(color: theme.colorScheme.surface, width: 3),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4.w),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: EdgeInsets.all(4.w),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: theme.brightness == Brightness.dark
+                  ? [
+                      theme.colorScheme.primary.withOpacity(0.3),
+                      theme.colorScheme.primary.withOpacity(0.15),
+                      theme.colorScheme.secondary.withOpacity(0.2),
+                    ]
+                  : [
+                      theme.colorScheme.primary.withOpacity(0.6),
+                      theme.colorScheme.primary.withOpacity(0.4),
+                      theme.colorScheme.secondary.withOpacity(0.3),
+                    ],
             ),
-            child: Center(
-              child: CustomIconWidget(
-                iconName: 'person',
-                color: theme.colorScheme.primary,
-                size: 40,
+            borderRadius: BorderRadius.circular(4.w),
+            border: Border.all(
+              color: theme.brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.white.withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.primary.withOpacity(0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
-            ),
+            ],
           ),
-          SizedBox(width: 4.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  studentName,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    color: theme.colorScheme.onPrimary,
-                    fontWeight: FontWeight.w700,
+          child: Row(
+            children: [
+              Container(
+                width: 20.w,
+                height: 20.w,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: theme.colorScheme.onPrimary.withOpacity(0.3),
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: CustomIconWidget(
+                    iconName: 'person',
+                    color: theme.colorScheme.primary,
+                    size: 40,
                   ),
                 ),
-                SizedBox(height: 0.5.h),
-                Row(
+              ),
+              SizedBox(width: 4.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CustomIconWidget(
-                      iconName: 'military_tech',
-                      color: theme.colorScheme.onPrimary,
-                      size: 20,
-                    ),
-                    SizedBox(width: 1.w),
                     Text(
-                      'Level $currentLevel',
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      studentName,
+                      style: theme.textTheme.headlineSmall?.copyWith(
                         color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.w800,
                       ),
+                    ),
+                    SizedBox(height: 1.h),
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 2.w,
+                            vertical: 0.5.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.onPrimary.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(2.w),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CustomIconWidget(
+                                iconName: 'military_tech',
+                                color: theme.colorScheme.onPrimary,
+                                size: 18,
+                              ),
+                              SizedBox(width: 1.w),
+                              Text(
+                                'Level $currentLevel',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: theme.colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 2.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 2.w,
+                            vertical: 0.5.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.onPrimary.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(2.w),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CustomIconWidget(
+                                iconName: 'stars',
+                                color: theme.colorScheme.onPrimary,
+                                size: 18,
+                              ),
+                              SizedBox(width: 1.w),
+                              Text(
+                                '$totalPoints pts',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: theme.colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                SizedBox(height: 0.5.h),
-                Row(
-                  children: [
-                    CustomIconWidget(
-                      iconName: 'stars',
-                      color: theme.colorScheme.secondary,
-                      size: 20,
-                    ),
-                    SizedBox(width: 1.w),
-                    Text(
-                      '$totalPoints Points',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -303,10 +427,14 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Overview',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 2.w),
+          child: Text(
+            'Overview',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
         SizedBox(height: 2.h),
@@ -337,10 +465,14 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Skills Mastery',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 2.w),
+          child: Text(
+            'Skills Mastery',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
         SizedBox(height: 2.h),
@@ -360,10 +492,14 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Achievements',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 2.w),
+          child: Text(
+            'Achievements',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
         SizedBox(height: 2.h),
@@ -390,24 +526,44 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
   }
 
   Widget _buildMotivationalMessage(ThemeData theme) {
-    return Container(
+    return GlassCard(
       padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.tertiary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
-          width: 2,
-        ),
-      ),
+      borderRadius: 4.w,
+      opacity: 0.15,
+      borderColor: theme.colorScheme.tertiary.withOpacity(0.3),
+      borderWidth: 2,
+      gradientColors: theme.brightness == Brightness.dark
+          ? [
+              theme.colorScheme.tertiary.withOpacity(0.15),
+              theme.colorScheme.tertiary.withOpacity(0.08),
+            ]
+          : [
+              theme.colorScheme.tertiary.withOpacity(0.2),
+              theme.colorScheme.tertiary.withOpacity(0.1),
+            ],
       child: Row(
         children: [
-          CustomIconWidget(
-            iconName: 'lightbulb',
-            color: theme.colorScheme.tertiary,
-            size: 32,
+          Container(
+            width: 12.w,
+            height: 12.w,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.tertiary,
+              borderRadius: BorderRadius.circular(3.w),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.tertiary.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.lightbulb,
+              color: theme.colorScheme.onPrimary,
+              size: 6.w,
+            ),
           ),
-          SizedBox(width: 3.w),
+          SizedBox(width: 4.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,13 +571,13 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
                 Text(
                   'Keep Going!',
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.tertiary,
+                    fontWeight: FontWeight.w800,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 SizedBox(height: 0.5.h),
                 Text(
-                  'You\'re doing great! Practice division more to improve your skills.',
+                  'You\'re doing great! Practice more to improve your skills.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

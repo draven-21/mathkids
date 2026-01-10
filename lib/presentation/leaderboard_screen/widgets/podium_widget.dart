@@ -1,10 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
 
-/// Podium widget displaying top 3 performers with pixel-style design
+/// Podium widget displaying top 3 performers with modern design inspired by reference image
 class PodiumWidget extends StatelessWidget {
   final List<Map<String, dynamic>> topThree;
   final AnimationController celebrationController;
@@ -23,87 +24,170 @@ class PodiumWidget extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.h),
-      child: Column(
-        children: [
-          // Top row with 1st place
-          _buildPodiumPlace(context, theme, topThree[0], 1, 20.h, true),
-
-          SizedBox(height: 2.h),
-
-          // Bottom row with 2nd and 3rd place
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: _buildPodiumPlace(
-                  context,
-                  theme,
-                  topThree[1],
-                  2,
-                  16.h,
-                  false,
-                ),
+    return ClipRRect(
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(8.w),
+        bottomRight: Radius.circular(8.w),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.h),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: theme.brightness == Brightness.dark
+                  ? [
+                      theme.colorScheme.primary.withOpacity(0.4),
+                      theme.colorScheme.primary.withOpacity(0.2),
+                      theme.colorScheme.secondary.withOpacity(0.3),
+                    ]
+                  : [
+                      theme.colorScheme.primary.withOpacity(0.7),
+                      theme.colorScheme.primary.withOpacity(0.5),
+                      theme.colorScheme.secondary.withOpacity(0.4),
+                    ],
+            ),
+            border: Border(
+              bottom: BorderSide(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.white.withOpacity(0.3),
+                width: 1.5,
               ),
-
-              SizedBox(width: 3.w),
-
-              Expanded(
-                child: _buildPodiumPlace(
-                  context,
-                  theme,
-                  topThree[2],
-                  3,
-                  14.h,
-                  false,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.primary.withOpacity(
+                  theme.brightness == Brightness.dark ? 0.3 : 0.2,
                 ),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-        ],
+          child: Column(
+            children: [
+              // Top 3 players in horizontal layout
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // 2nd place
+                  Expanded(
+                    child: _buildPodiumPlace(
+                      context,
+                      theme,
+                      topThree[1],
+                      2,
+                      '#2',
+                      theme.colorScheme.surface,
+                    ),
+                  ),
+
+                  SizedBox(width: 3.w),
+
+                  // 1st place (larger)
+                  Expanded(
+                    child: _buildPodiumPlace(
+                      context,
+                      theme,
+                      topThree[0],
+                      1,
+                      '#1',
+                      theme.colorScheme.secondary,
+                    ),
+                  ),
+
+                  SizedBox(width: 3.w),
+
+                  // 3rd place
+                  Expanded(
+                    child: _buildPodiumPlace(
+                      context,
+                      theme,
+                      topThree[2],
+                      3,
+                      '#3',
+                      theme.colorScheme.surface.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  /// Builds individual podium place
+  /// Builds individual podium place with layered circular design
   Widget _buildPodiumPlace(
     BuildContext context,
     ThemeData theme,
     Map<String, dynamic> user,
     int place,
-    double height,
-    bool isFirst,
+    String placeLabel,
+    Color borderColor,
   ) {
-    final Color placeColor = place == 1
-        ? const Color(0xFFF39C12)
-        : place == 2
-        ? const Color(0xFF95A5A6)
-        : const Color(0xFFCD7F32);
+    final bool isFirst = place == 1;
+    final double avatarSize = isFirst ? 28.w : 22.w;
+    final double rankBadgeSize = isFirst ? 10.w : 8.w;
 
     return Column(
       children: [
-        // Avatar with celebration effect for 1st place
+        // Rank badge at top
+        Container(
+          width: rankBadgeSize,
+          height: rankBadgeSize,
+          decoration: BoxDecoration(
+            color: borderColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: borderColor.withOpacity(
+                  theme.brightness == Brightness.dark ? 0.6 : 0.4,
+                ),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              placeLabel,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: theme.colorScheme.primary,
+                fontSize: isFirst ? 16.sp : 14.sp,
+              ),
+            ),
+          ),
+        ),
+
+        SizedBox(height: 1.5.h),
+
+        // Avatar with layered circles and glow effect
         Stack(
           alignment: Alignment.center,
           children: [
-            // Celebration glow for 1st place
+            // Outer glow for 1st place
             if (isFirst)
               AnimatedBuilder(
                 animation: celebrationController,
                 builder: (context, child) {
                   return Container(
-                    width: 20.w,
-                    height: 20.w,
+                    width: avatarSize + 4.w,
+                    height: avatarSize + 4.w,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: placeColor.withValues(
-                            alpha: 0.3 + (celebrationController.value * 0.3),
+                          color: borderColor.withOpacity(
+                            0.3 + (celebrationController.value * 0.2),
                           ),
-                          blurRadius: 20 + (celebrationController.value * 10),
+                          blurRadius: 20 + (celebrationController.value * 15),
                           spreadRadius: 5 + (celebrationController.value * 5),
                         ),
                       ],
@@ -112,118 +196,180 @@ class PodiumWidget extends StatelessWidget {
                 },
               ),
 
-            // Avatar circle
+            // Outer decorative ring
             Container(
-              width: 18.w,
-              height: 18.w,
+              width: avatarSize + 2.w,
+              height: avatarSize + 2.w,
               decoration: BoxDecoration(
-                color: user["color"] as Color,
                 shape: BoxShape.circle,
-                border: Border.all(color: placeColor, width: 3),
+                border: Border.all(
+                  color: borderColor.withOpacity(0.5),
+                  width: 2,
+                ),
+              ),
+            ),
+
+            // Main avatar circle with theme-aware border
+            Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: borderColor, width: isFirst ? 4 : 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.black.withOpacity(0.5)
+                        : Colors.black.withOpacity(0.15),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
               child: Center(
-                child: Text(
-                  user["avatar"] as String,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+                child: Container(
+                  width: avatarSize - 4.w,
+                  height: avatarSize - 4.w,
+                  decoration: BoxDecoration(
+                    color: user["color"] as Color,
+                    shape: BoxShape.circle,
                   ),
-                ),
-              ),
-            ),
-
-            // Crown for 1st place
-            if (isFirst)
-              Positioned(
-                top: -2.h,
-                child: CustomIconWidget(
-                  iconName: 'workspace_premium',
-                  size: 8.w,
-                  color: placeColor,
-                ),
-              ),
-          ],
-        ),
-
-        SizedBox(height: 1.h),
-
-        // Name
-        Text(
-          user["name"] as String,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurface,
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-
-        SizedBox(height: 0.5.h),
-
-        // Points with math symbol decoration
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CustomIconWidget(
-              iconName: 'functions',
-              size: 4.w,
-              color: theme.colorScheme.primary,
-            ),
-            SizedBox(width: 1.w),
-            Text(
-              '${user["points"]}',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-
-        SizedBox(height: 1.h),
-
-        // Podium base
-        Container(
-          height: height,
-          decoration: BoxDecoration(
-            color: placeColor.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(2.w)),
-            border: Border.all(color: placeColor, width: 3),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Place number
-              Container(
-                width: 12.w,
-                height: 12.w,
-                decoration: BoxDecoration(
-                  color: placeColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    '$place',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                  child: Center(
+                    child: Text(
+                      user["avatar"] as String,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: isFirst ? 24.sp : 18.sp,
+                      ),
                     ),
                   ),
                 ),
               ),
+            ),
 
-              SizedBox(height: 1.h),
+            // Crown/Trophy icon for 1st place
+            if (isFirst)
+              Positioned(
+                top: -1.h,
+                child: Container(
+                  padding: EdgeInsets.all(1.5.w),
+                  decoration: BoxDecoration(
+                    color: borderColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: borderColor.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: CustomIconWidget(
+                    iconName: 'emoji_events',
+                    size: 6.w,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+          ],
+        ),
 
-              // Trophy icon
-              CustomIconWidget(
-                iconName: 'emoji_events',
-                size: 8.w,
-                color: placeColor,
+        SizedBox(height: 1.5.h),
+
+        // Name in theme-aware container
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(2.w),
+            boxShadow: [
+              BoxShadow(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.black.withOpacity(0.5)
+                    : Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            user["name"] as String,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+              fontSize: isFirst ? 12.sp : 11.sp,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+
+        SizedBox(height: 1.h),
+
+        // Points display
+        Text(
+          '${user["points"]}',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: theme.colorScheme.onPrimary,
+            fontSize: isFirst ? 22.sp : 18.sp,
+            shadows: [
+              Shadow(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.black.withOpacity(0.6)
+                    : Colors.black.withOpacity(0.2),
+                offset: const Offset(0, 2),
+                blurRadius: 4,
               ),
             ],
           ),
         ),
+
+        // Trophy icon or laurel decoration
+        if (isFirst) ...[
+          SizedBox(height: 1.h),
+          Container(
+            padding: EdgeInsets.all(2.w),
+            decoration: BoxDecoration(
+              color: borderColor.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            child: CustomIconWidget(
+              iconName: 'emoji_events',
+              size: 7.w,
+              color: borderColor,
+            ),
+          ),
+        ] else ...[
+          SizedBox(height: 1.h),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onPrimary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(2.w),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  place == 2 ? Icons.military_tech : Icons.workspace_premium,
+                  color: borderColor,
+                  size: 4.w,
+                ),
+                SizedBox(width: 1.w),
+                Icon(
+                  place == 2 ? Icons.military_tech : Icons.workspace_premium,
+                  color: borderColor,
+                  size: 4.w,
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

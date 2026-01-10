@@ -24,6 +24,8 @@ class _NameEntryScreenState extends State<NameEntryScreen>
   final FocusNode _nameFocusNode = FocusNode();
   bool _isButtonEnabled = false;
   String? _errorMessage;
+  String? _suggestedName;
+  bool _isCheckingName = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -67,6 +69,7 @@ class _NameEntryScreenState extends State<NameEntryScreen>
     final text = _nameController.text.trim();
     setState(() {
       _errorMessage = null;
+      _suggestedName = null;
 
       if (text.isEmpty) {
         _isButtonEnabled = false;
@@ -95,22 +98,106 @@ class _NameEntryScreenState extends State<NameEntryScreen>
         return;
       }
 
-      _isButtonEnabled = true;
+      // Check name availability in database
+      _checkNameAvailability(text);
     });
   }
 
+  Future<void> _checkNameAvailability(String name) async {
+    setState(() {
+      _isCheckingName = true;
+      _isButtonEnabled = false;
+    });
+
+    try {
+      final isAvailable = await SupabaseService.instance.isNameAvailable(name);
+
+      if (!mounted) return;
+
+      if (isAvailable) {
+        setState(() {
+          _isButtonEnabled = true;
+          _isCheckingName = false;
+        });
+      } else {
+        // Name exists, generate suggestions
+        final suggestion = await _generateUniqueName(name);
+        setState(() {
+          _errorMessage = 'This name is already taken';
+          _suggestedName = suggestion;
+          _isButtonEnabled = false;
+          _isCheckingName = false;
+        });
+      }
+    } catch (e) {
+      // If check fails, allow user to proceed (offline mode)
+      if (mounted) {
+        setState(() {
+          _isButtonEnabled = true;
+          _isCheckingName = false;
+        });
+      }
+    }
+  }
+
+  Future<String> _generateUniqueName(String baseName) async {
+    // Try adding numbers 1-99
+    for (int i = 1; i <= 99; i++) {
+      final suggestion = '$baseName$i';
+      final isAvailable = await SupabaseService.instance.isNameAvailable(
+        suggestion,
+      );
+      if (isAvailable) {
+        return suggestion;
+      }
+    }
+
+    // If all numbers taken, add random suffix
+    final random = DateTime.now().millisecondsSinceEpoch % 1000;
+    return '$baseName$random';
+  }
+
+  void _useSuggestedName() {
+    if (_suggestedName != null) {
+      _nameController.text = _suggestedName!;
+      setState(() {
+        _errorMessage = null;
+        _suggestedName = null;
+      });
+    }
+  }
+
   Future<void> _handleStartLearning() async {
-    if (!_isButtonEnabled) return;
+    if (!_isButtonEnabled || _isCheckingName) return;
 
     final name = _nameController.text.trim();
 
     // Haptic feedback
     HapticFeedback.mediumImpact();
 
+    // Double-check name availability before creating user
+    setState(() => _isCheckingName = true);
+
     try {
+      final isAvailable = await SupabaseService.instance.isNameAvailable(name);
+
+      if (!isAvailable) {
+        // Name was taken between validation and submission
+        final suggestion = await _generateUniqueName(name);
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'This name was just taken by someone else';
+            _suggestedName = suggestion;
+            _isButtonEnabled = false;
+            _isCheckingName = false;
+          });
+        }
+        return;
+      }
+
       // Create user in Supabase
       final user = await SupabaseService.instance.createUser(name);
-      
+
       if (user == null) {
         throw Exception('Failed to create user');
       }
@@ -131,6 +218,7 @@ class _NameEntryScreenState extends State<NameEntryScreen>
       if (mounted) {
         setState(() {
           _errorMessage = 'Oops! Something went wrong. Please try again.';
+          _isCheckingName = false;
         });
       }
     }
@@ -164,7 +252,10 @@ class _NameEntryScreenState extends State<NameEntryScreen>
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 4.h),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 6.w,
+                          vertical: 4.h,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -181,6 +272,76 @@ class _NameEntryScreenState extends State<NameEntryScreen>
                               focusNode: _nameFocusNode,
                               errorMessage: _errorMessage,
                             ),
+
+                            // Show suggested name if available
+                            if (_suggestedName != null) ...[
+                              SizedBox(height: 2.h),
+                              GestureDetector(
+                                onTap: _useSuggestedName,
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 4.w,
+                                    vertical: 1.5.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary
+                                        .withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(3.w),
+                                    border: Border.all(
+                                      color: theme.colorScheme.primary
+                                          .withOpacity(0.3),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.lightbulb_outline,
+                                        color: theme.colorScheme.primary,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 2.w),
+                                      Text(
+                                        'Try "$_suggestedName" instead?',
+                                        style: theme.textTheme.titleSmall
+                                            ?.copyWith(
+                                              color: theme.colorScheme.primary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+
+                            // Show checking indicator
+                            if (_isCheckingName) ...[
+                              SizedBox(height: 2.h),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 2.w),
+                                  Text(
+                                    'Checking availability...',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
 
                             SizedBox(height: 8.h),
 
