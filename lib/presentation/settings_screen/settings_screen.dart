@@ -3,7 +3,10 @@ import 'package:sizer/sizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/settings_service.dart';
+import '../../services/supabase_service.dart';
+import '../../services/avatar_state_manager.dart';
 import '../../widgets/custom_icon_widget.dart';
+import '../../widgets/user_avatar_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -15,11 +18,38 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsService _settingsService = SettingsService.instance;
   String _studentName = '';
+  String? _avatarUrl;
+  String _avatarInitials = 'S';
+  Color _avatarColor = const Color(0xFF4A90E2);
+  String? _userId;
 
   @override
   void initState() {
     super.initState();
     _loadStudentName();
+    _loadUserData();
+
+    // Listen to avatar changes
+    AvatarStateManager().addListener(_onAvatarChanged);
+  }
+
+  @override
+  void dispose() {
+    AvatarStateManager().removeListener(_onAvatarChanged);
+    super.dispose();
+  }
+
+  void _onAvatarChanged() {
+    if (!mounted) return;
+
+    final currentAvatar = AvatarStateManager().currentAvatarUrl;
+    final currentUser = AvatarStateManager().currentUserId;
+
+    if (currentUser == _userId && currentAvatar != _avatarUrl) {
+      setState(() {
+        _avatarUrl = currentAvatar;
+      });
+    }
   }
 
   Future<void> _loadStudentName() async {
@@ -27,6 +57,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _studentName = prefs.getString('student_name') ?? 'Student';
     });
+  }
+
+  Future<void> _loadUserData() async {
+    if (!SupabaseService.instance.isAvailable) return;
+
+    try {
+      final userId = await SupabaseService.instance.getCurrentUserId();
+      if (userId == null || !mounted) return;
+
+      final user = await SupabaseService.instance.getUserById(userId);
+      if (user == null || !mounted) return;
+
+      setState(() {
+        _userId = userId;
+        _studentName = user.name;
+        _avatarUrl = user.avatarUrl;
+        _avatarInitials = user.avatarInitials;
+        _avatarColor = user.avatarColor; // Already a Color object
+      });
+
+      // Initialize AvatarStateManager
+      AvatarStateManager().initializeAvatar(user.avatarUrl, userId);
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+    }
   }
 
   @override
@@ -41,7 +96,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: IconButton(
           icon: CustomIconWidget(
             iconName: 'arrow_back',
-            color: theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface,
+            color:
+                theme.appBarTheme.foregroundColor ??
+                theme.colorScheme.onSurface,
             size: 24,
           ),
           onPressed: () => Navigator.of(context).pop(),
@@ -95,22 +152,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 15.w,
-            height: 15.w,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                _studentName.isNotEmpty ? _studentName[0].toUpperCase() : 'S',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+          // User avatar (read-only, no editing)
+          ResponsiveUserAvatar(
+            avatarUrl: _avatarUrl,
+            initials: _avatarInitials,
+            backgroundColor: _avatarColor,
+            sizePercentage: 15.0,
+            borderWidth: 3.0,
+            borderColor: Colors.white.withOpacity(0.3),
+            showEditIcon: false, // Read-only display
+            onTap: null, // No tap handler - editing only in progress screen
           ),
           SizedBox(width: 4.w),
           Expanded(
@@ -161,10 +212,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           child: Column(
             children: [
-              _buildThemeOption(theme, ThemeMode.system, 'System', 'brightness_auto'),
-              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.1)),
+              _buildThemeOption(
+                theme,
+                ThemeMode.system,
+                'System',
+                'brightness_auto',
+              ),
+              Divider(
+                height: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.1),
+              ),
               _buildThemeOption(theme, ThemeMode.light, 'Light', 'light_mode'),
-              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.1)),
+              Divider(
+                height: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.1),
+              ),
               _buildThemeOption(theme, ThemeMode.dark, 'Dark', 'dark_mode'),
             ],
           ),
@@ -173,12 +235,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildThemeOption(ThemeData theme, ThemeMode mode, String label, String icon) {
+  Widget _buildThemeOption(
+    ThemeData theme,
+    ThemeMode mode,
+    String label,
+    String icon,
+  ) {
     final isSelected = _settingsService.themeMode == mode;
     return ListTile(
       leading: CustomIconWidget(
         iconName: icon,
-        color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+        color: isSelected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurface,
         size: 24,
       ),
       title: Text(
@@ -235,7 +304,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setState(() {});
                 },
               ),
-              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.1)),
+              Divider(
+                height: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.1),
+              ),
               _buildSwitchTile(
                 theme: theme,
                 title: 'Vibration',
@@ -247,7 +319,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setState(() {});
                 },
               ),
-              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.1)),
+              Divider(
+                height: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.1),
+              ),
               _buildSwitchTile(
                 theme: theme,
                 title: 'Notifications',
@@ -339,7 +414,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
-              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.1)),
+              Divider(
+                height: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.1),
+              ),
               ListTile(
                 leading: CustomIconWidget(
                   iconName: 'school',

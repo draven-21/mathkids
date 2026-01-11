@@ -97,7 +97,7 @@ class AvatarService {
       debugPrint('=== AVATAR UPLOAD DEBUG START ===');
       debugPrint('UserId: $userId');
       debugPrint('ImageFile path: ${imageFile.path}');
-      
+
       if (!SupabaseService.instance.isAvailable) {
         debugPrint('ERROR: Supabase is not available');
         throw Exception('Supabase is not available');
@@ -105,7 +105,7 @@ class AvatarService {
 
       final client = SupabaseService.instance.client;
       debugPrint('Supabase client initialized');
-      
+
       // Note: Skipping authentication check since we're using anon policies
       // This allows upload without requiring Supabase Auth session
 
@@ -122,25 +122,11 @@ class AvatarService {
       final mimeType = _getMimeType(extension);
       debugPrint('File size: $fileSize bytes');
       debugPrint('MIME type: $mimeType');
-      
-      // Check if bucket exists before upload
-      try {
-        final buckets = await client.storage.listBuckets();
-        debugPrint('Available buckets: ${buckets.map((b) => b.id).toList()}');
-        final bucketExists = buckets.any((b) => b.id == bucketName);
-        debugPrint('Bucket "$bucketName" exists: $bucketExists');
-        
-        if (!bucketExists) {
-          debugPrint('ERROR: Bucket "$bucketName" does not exist');
-          throw Exception('Storage bucket "$bucketName" not found');
-        }
-      } catch (e) {
-        debugPrint('ERROR checking buckets: $e');
-        throw Exception('Failed to verify storage bucket: $e');
-      }
 
-      debugPrint('Starting upload to storage...');
-      
+      // Note: We attempt upload directly and handle errors if bucket doesn't exist
+      // This provides better error messages and doesn't block the upload attempt
+      debugPrint('Attempting upload to storage bucket: $bucketName');
+
       // Upload to Supabase Storage
       final uploadPath = await client.storage
           .from(bucketName)
@@ -161,7 +147,7 @@ class AvatarService {
       debugPrint('Avatar URL: $publicUrl');
       debugPrint('File size: $fileSize');
       debugPrint('MIME type: $mimeType');
-      
+
       // Update user record in database
       final updateResult = await client
           .from('users')
@@ -172,7 +158,7 @@ class AvatarService {
           })
           .eq('id', userId)
           .select(); // Add .select() to see what was updated
-      
+
       debugPrint('Database update result: $updateResult');
       debugPrint('User record updated successfully with avatar URL');
       debugPrint('=== AVATAR UPLOAD DEBUG END ===');
@@ -182,15 +168,36 @@ class AvatarService {
       debugPrint('=== AVATAR UPLOAD ERROR ===');
       debugPrint('Error uploading avatar: $e');
       debugPrint('Error type: ${e.runtimeType}');
-      
-      if (e.toString().contains('Unauthorized')) {
-        debugPrint('AUTHORIZATION ERROR - Check storage policies and user authentication');
-      } else if (e.toString().contains('Bucket not found')) {
-        debugPrint('BUCKET ERROR - Check if bucket exists in Supabase Storage');
+
+      // Provide helpful error messages based on error type
+      if (e.toString().contains('Bucket not found') ||
+          e.toString().contains('bucket_id') ||
+          e.toString().contains('InvalidBucketId')) {
+        debugPrint(
+          'BUCKET ERROR - The "avatars" storage bucket does not exist',
+        );
+        debugPrint('SOLUTION: Follow the setup guide in bucket_setup_guide.md');
+        throw Exception(
+          'Storage bucket not configured. Please follow the setup guide in bucket_setup_guide.md to create the "avatars" bucket.',
+        );
+      } else if (e.toString().contains('Unauthorized') ||
+          e.toString().contains('permission') ||
+          e.toString().contains('policy')) {
+        debugPrint(
+          'AUTHORIZATION ERROR - Storage policies may be missing or incorrect',
+        );
+        debugPrint('SOLUTION: Run storage_policies.sql in Supabase SQL Editor');
+        throw Exception(
+          'Storage access denied. Please configure storage policies using storage_policies.sql',
+        );
       } else if (e.toString().contains('new row violates row-level security')) {
         debugPrint('RLS POLICY ERROR - Storage policies are too restrictive');
+        debugPrint('SOLUTION: Check storage policies for the avatars bucket');
+        throw Exception(
+          'Storage security policy error. Please verify storage policies are configured correctly.',
+        );
       }
-      
+
       debugPrint('=== END ERROR DEBUG ===');
       rethrow;
     }

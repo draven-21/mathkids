@@ -152,6 +152,7 @@ SELECT
     name,
     avatar_initials,
     avatar_color,
+    avatar_url,
     total_points,
     current_level,
     current_streak,
