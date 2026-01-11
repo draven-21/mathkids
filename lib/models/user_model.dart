@@ -6,6 +6,7 @@ class UserModel {
   final String avatarInitials;
   final Color avatarColor;
   final String? avatarUrl;
+  final String? deviceId;
   final int totalPoints;
   final int currentLevel;
   final int currentStreak;
@@ -23,6 +24,7 @@ class UserModel {
     required this.avatarInitials,
     this.avatarColor = const Color(0xFF4A90E2),
     this.avatarUrl,
+    this.deviceId,
     this.totalPoints = 0,
     this.currentLevel = 1,
     this.currentStreak = 0,
@@ -47,6 +49,7 @@ class UserModel {
       avatarInitials: json['avatar_initials'] as String,
       avatarColor: _parseColor(json['avatar_color'] as String?),
       avatarUrl: json['avatar_url'] as String?,
+      deviceId: json['device_id'] as String?,
       totalPoints: json['total_points'] as int? ?? 0,
       currentLevel: json['current_level'] as int? ?? 1,
       currentStreak: json['current_streak'] as int? ?? 0,

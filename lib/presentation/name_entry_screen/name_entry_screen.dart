@@ -5,6 +5,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../services/supabase_service.dart';
+import '../../services/device_id_service.dart';
 import './widgets/name_input_widget.dart';
 import './widgets/start_button_widget.dart';
 import './widgets/welcome_header_widget.dart';
@@ -253,8 +254,17 @@ class _NameEntryScreenState extends State<NameEntryScreen>
         return;
       }
 
+      // Get device ID
+      final deviceId = await DeviceIdService.instance.getDeviceId();
+      if (deviceId == null) {
+        debugPrint('Warning: Could not get device ID');
+      }
+
       // Create user in Supabase
-      final user = await SupabaseService.instance.createUser(name);
+      final user = await SupabaseService.instance.createUser(
+        name,
+        deviceId: deviceId,
+      );
 
       if (user == null) {
         throw Exception('Failed to create user');
@@ -275,7 +285,11 @@ class _NameEntryScreenState extends State<NameEntryScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Oops! Something went wrong. Please try again.';
+          if (e.toString().contains('already has an account')) {
+            _errorMessage = 'This device already has an account';
+          } else {
+            _errorMessage = 'Oops! Something went wrong. Please try again.';
+          }
           _isCheckingName = false;
         });
       }

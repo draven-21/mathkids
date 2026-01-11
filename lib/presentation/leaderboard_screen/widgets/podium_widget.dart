@@ -83,7 +83,7 @@ class PodiumWidget extends StatelessWidget {
                       topThree[1],
                       2,
                       '#2',
-                      theme.colorScheme.surface,
+                      const Color(0xFFC0C0C0), // Silver
                     ),
                   ),
 
@@ -97,7 +97,7 @@ class PodiumWidget extends StatelessWidget {
                       topThree[0],
                       1,
                       '#1',
-                      theme.colorScheme.secondary,
+                      const Color(0xFFFFD700), // Gold
                     ),
                   ),
 
@@ -111,7 +111,7 @@ class PodiumWidget extends StatelessWidget {
                       topThree[2],
                       3,
                       '#3',
-                      theme.colorScheme.surface.withOpacity(0.9),
+                      const Color(0xFFCD7F32), // Bronze
                     ),
                   ),
                 ],
@@ -138,19 +138,23 @@ class PodiumWidget extends StatelessWidget {
 
     return Column(
       children: [
-        // Rank badge at top
+        // Rank badge at top - modern design
         Container(
           width: rankBadgeSize,
           height: rankBadgeSize,
           decoration: BoxDecoration(
-            color: borderColor,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [borderColor, borderColor.withOpacity(0.7)],
+            ),
             shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
             boxShadow: [
               BoxShadow(
-                color: borderColor.withOpacity(
-                  theme.brightness == Brightness.dark ? 0.6 : 0.4,
-                ),
-                blurRadius: 12,
+                color: borderColor.withOpacity(0.6),
+                blurRadius: 15,
+                spreadRadius: 2,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -158,10 +162,17 @@ class PodiumWidget extends StatelessWidget {
           child: Center(
             child: Text(
               placeLabel,
-              style: theme.textTheme.titleLarge?.copyWith(
+              style: TextStyle(
                 fontWeight: FontWeight.w900,
-                color: theme.colorScheme.primary,
-                fontSize: isFirst ? 16.sp : 14.sp,
+                color: Colors.white,
+                fontSize: isFirst ? 18.sp : 15.sp,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withOpacity(0.5),
+                    offset: const Offset(0, 2),
+                    blurRadius: 4,
+                  ),
+                ],
               ),
             ),
           ),
@@ -248,28 +259,30 @@ class PodiumWidget extends StatelessWidget {
 
         SizedBox(height: 1.5.h),
 
-        // Name in theme-aware container
+        // Name in modern container
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(2.w),
+            borderRadius: BorderRadius.circular(3.w),
+            border: Border.all(color: borderColor.withOpacity(0.3), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.black.withOpacity(0.5)
-                    : Colors.black.withOpacity(0.1),
+                color: borderColor.withOpacity(0.2),
                 blurRadius: 8,
-                offset: const Offset(0, 2),
+                offset: const Offset(0, 4), // Changed offset
               ),
             ],
           ),
           child: Text(
             user["name"] as String,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
+            style: TextStyle(
+              // Changed to direct TextStyle
+              fontWeight: FontWeight.w800, // Changed from w700
               color: theme.colorScheme.onSurface,
-              fontSize: isFirst ? 12.sp : 11.sp,
+              fontSize: isFirst
+                  ? 13.sp
+                  : 11.sp, // Changed from 12.sp for isFirst
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
@@ -279,47 +292,72 @@ class PodiumWidget extends StatelessWidget {
 
         SizedBox(height: 1.h),
 
-        // Points display
+        // Points display - bold and prominent // Changed comment
         Text(
           '${user["points"]}',
-          style: theme.textTheme.titleLarge?.copyWith(
+          style: TextStyle(
+            // Changed to direct TextStyle
             fontWeight: FontWeight.w900,
-            color: theme.colorScheme.onPrimary,
-            fontSize: isFirst ? 22.sp : 18.sp,
+            color: borderColor, // Changed from theme.colorScheme.onPrimary
+            fontSize: isFirst ? 24.sp : 19.sp,
             shadows: [
               Shadow(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.black.withOpacity(0.6)
-                    : Colors.black.withOpacity(0.2),
-                offset: const Offset(0, 2),
-                blurRadius: 4,
+                color: Colors.black.withOpacity(0.3),
+                offset: const Offset(0, 3),
+                blurRadius: 6,
+              ),
+              Shadow(
+                color: borderColor.withOpacity(0.5),
+                offset: const Offset(0, 0),
+                blurRadius: 10,
               ),
             ],
           ),
         ),
 
-        // Trophy icon or laurel decoration
+        // Trophy icon - more prominent for 1st place
         if (isFirst) ...[
-          SizedBox(height: 1.h),
+          SizedBox(height: 1.5.h),
           Container(
-            padding: EdgeInsets.all(2.w),
+            padding: EdgeInsets.all(2.5.w),
             decoration: BoxDecoration(
-              color: borderColor.withOpacity(0.3),
+              gradient: RadialGradient(
+                colors: [
+                  borderColor.withOpacity(0.4),
+                  borderColor.withOpacity(0.1),
+                ],
+              ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: borderColor.withOpacity(0.5),
+                  blurRadius: 15,
+                  spreadRadius: 3,
+                ),
+              ],
             ),
             child: CustomIconWidget(
               iconName: 'emoji_events',
-              size: 7.w,
+              size: 8.w,
               color: borderColor,
             ),
           ),
         ] else ...[
-          SizedBox(height: 1.h),
+          SizedBox(height: 1.2.h),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+            padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.8.h),
             decoration: BoxDecoration(
-              color: theme.colorScheme.onPrimary.withOpacity(0.15),
+              gradient: LinearGradient(
+                colors: [
+                  borderColor.withOpacity(0.2),
+                  borderColor.withOpacity(0.05),
+                ],
+              ),
               borderRadius: BorderRadius.circular(2.w),
+              border: Border.all(
+                color: borderColor.withOpacity(0.3),
+                width: 1.5,
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,

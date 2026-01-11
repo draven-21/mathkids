@@ -32,14 +32,20 @@ class PixelMascotWidget extends StatelessWidget {
             width: 20.w,
             height: 20.w,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                width: 2,
+              ),
             ),
-            child: Center(
-              child: CustomIconWidget(
-                iconName: 'emoji_emotions',
-                color: theme.colorScheme.surface,
-                size: 40,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(
+                14,
+              ), // Slightly less than container
+              child: Image.asset(
+                'assets/images/calculator.gif',
+                fit: BoxFit.cover,
               ),
             ),
           ),

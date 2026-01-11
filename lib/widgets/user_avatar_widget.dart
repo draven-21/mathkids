@@ -276,12 +276,12 @@ class PodiumAvatarWidget extends StatelessWidget {
             border: Border.all(color: borderColor.withOpacity(0.5), width: 2),
           ),
         ),
-        // White border ring
+        // Border ring - transparent background to not cover trophy
         Container(
           width: avatarSize,
           height: avatarSize,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            // Removed: color: theme.colorScheme.surface - was creating yellow square
             shape: BoxShape.circle,
             border: Border.all(color: borderColor, width: isFirst ? 4 : 3),
             boxShadow: [
@@ -294,13 +294,19 @@ class PodiumAvatarWidget extends StatelessWidget {
               ),
             ],
           ),
-          child: Center(
-            child: UserAvatarWidget(
-              avatarUrl: avatarUrl,
-              initials: initials,
-              backgroundColor: backgroundColor,
-              size: avatarSize - 4.w,
-              borderWidth: 0,
+          child: ClipOval(
+            child: Container(
+              color:
+                  theme.colorScheme.surface, // Background only for avatar area
+              child: Center(
+                child: UserAvatarWidget(
+                  avatarUrl: avatarUrl,
+                  initials: initials,
+                  backgroundColor: backgroundColor,
+                  size: avatarSize - 4.w,
+                  borderWidth: 0,
+                ),
+              ),
             ),
           ),
         ),

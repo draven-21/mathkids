@@ -49,8 +49,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         final entries = await SupabaseService.instance.getLeaderboard();
 
         if (!mounted) return;
+
+        // Explicitly sort by rank (ascending) to ensure Top 3 are always correct
+        // This guarantees rank 1, 2, 3 are first in the list
+        final sortedEntries = entries..sort((a, b) => a.rank.compareTo(b.rank));
+
         setState(() {
-          _leaderboardData = entries.map((e) => e.toDisplayMap()).toList();
+          _leaderboardData = sortedEntries
+              .map((e) => e.toDisplayMap())
+              .toList();
           _isLoading = false;
         });
 
@@ -106,8 +113,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         final entries = await SupabaseService.instance.getLeaderboard();
 
         if (!mounted) return;
+
+        // Explicitly sort by rank to ensure Top 3 are always correct
+        final sortedEntries = entries..sort((a, b) => a.rank.compareTo(b.rank));
+
         setState(() {
-          _leaderboardData = entries.map((e) => e.toDisplayMap()).toList();
+          _leaderboardData = sortedEntries
+              .map((e) => e.toDisplayMap())
+              .toList();
           _isRefreshing = false;
         });
       } else {

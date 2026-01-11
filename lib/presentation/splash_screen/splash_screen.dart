@@ -6,6 +6,9 @@ import 'widgets/animated_title_widget.dart';
 import 'widgets/particle_background_widget.dart';
 import '../../widgets/smooth_page_transition.dart';
 import '../name_entry_screen/name_entry_screen.dart';
+import '../main_menu_screen/main_menu_screen.dart';
+import '../../services/device_id_service.dart';
+import '../../services/supabase_service.dart';
 
 /// Modern splash screen with polished animations and smooth transitions
 class SplashScreen extends StatefulWidget {
@@ -95,12 +98,83 @@ class _SplashScreenState extends State<SplashScreen>
     // Start main animation
     await _mainController.forward();
 
-    // Wait for animation to complete and then navigate
+    // Check for device account while animation plays
+    await _checkDeviceAccount();
+  }
+
+  Future<void> _checkDeviceAccount() async {
+    // Ensure minimum splash duration
     await Future.delayed(const Duration(milliseconds: 1500));
 
+    if (!mounted) return;
+
+    try {
+      // 1. Get Device ID
+      final deviceId = await DeviceIdService.instance.getDeviceId();
+      if (deviceId == null) {
+        debugPrint('Could not get device ID, going to name entry');
+        _navigateToNameEntry();
+        return;
+      }
+
+      // 2. Check if we have a locally saved user ID (Legacy/Offline support)
+      final currentUserId = await SupabaseService.instance.getCurrentUserId();
+
+      if (currentUserId != null) {
+        // User is locally logged in. Check if they need device ID migration.
+        if (SupabaseService.instance.isAvailable) {
+          final user = await SupabaseService.instance.getUserById(
+            currentUserId,
+          );
+          if (user != null && user.deviceId == null) {
+            debugPrint('Migrating existing user to device ID');
+            await SupabaseService.instance.updateUserDeviceId(
+              userId: user.id,
+              deviceId: deviceId,
+            );
+          }
+        }
+        _navigateToMainMenu();
+        return;
+      }
+
+      // 3. Check if this device has an account on server (for fresh install/cleared data)
+      final existingUser = await SupabaseService.instance.getUserByDeviceId(
+        deviceId,
+      );
+
+      if (existingUser != null) {
+        debugPrint(
+          'Device account found: ${existingUser.name}, auto-logging in',
+        );
+        await SupabaseService.instance.setCurrentUserId(existingUser.id);
+        _navigateToMainMenu();
+      } else {
+        debugPrint('No account found for this device, going to name entry');
+        _navigateToNameEntry();
+      }
+    } catch (e) {
+      debugPrint('Error in splash check: $e');
+      // Fallback to name entry on error
+      _navigateToNameEntry();
+    }
+  }
+
+  void _navigateToMainMenu() {
     if (mounted && !_navigated) {
       _navigated = true;
-      // Use custom smooth transition
+      Navigator.of(context).pushReplacement(
+        SmoothPageTransition(
+          page: const MainMenuScreen(),
+          duration: const Duration(milliseconds: 800),
+        ),
+      );
+    }
+  }
+
+  void _navigateToNameEntry() {
+    if (mounted && !_navigated) {
+      _navigated = true;
       Navigator.of(context).pushReplacement(
         SmoothPageTransition(
           page: const NameEntryScreen(),

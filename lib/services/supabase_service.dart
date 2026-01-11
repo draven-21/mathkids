@@ -127,6 +127,49 @@ class SupabaseService {
     }
   }
 
+  /// Get user by device ID
+  /// Returns existing user if device already has an account
+  Future<UserModel?> getUserByDeviceId(String deviceId) async {
+    if (!isAvailable) return null;
+
+    try {
+      final response = await client
+          .from('users')
+          .select()
+          .eq('device_id', deviceId)
+          .maybeSingle();
+
+      if (response == null) return null;
+
+      debugPrint('Found existing user for device: ${response['name']}');
+      return UserModel.fromJson(response);
+    } catch (e) {
+      debugPrint('Error getting user by device ID: $e');
+      return null;
+    }
+  }
+
+  /// Update user's device ID (for migrating existing users)
+  Future<bool> updateUserDeviceId({
+    required String userId,
+    required String deviceId,
+  }) async {
+    if (!isAvailable) return false;
+
+    try {
+      await client
+          .from('users')
+          .update({'device_id': deviceId})
+          .eq('id', userId);
+
+      debugPrint('Device ID updated for user: $userId');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating device ID: $e');
+      return false;
+    }
+  }
+
   /// Check if a name is available (not already taken by another user)
   Future<bool> isNameAvailable(String name) async {
     if (!isAvailable) {
@@ -150,7 +193,7 @@ class SupabaseService {
     }
   }
 
-  Future<UserModel?> createUser(String name) async {
+  Future<UserModel?> createUser(String name, {String? deviceId}) async {
     try {
       if (!isAvailable) {
         debugPrint('Supabase not available - creating user locally');
@@ -160,6 +203,7 @@ class SupabaseService {
           name: name,
           avatarInitials: _generateAvatarInitials(name),
           avatarColor: _generateRandomColorObject(),
+          deviceId: deviceId,
           totalPoints: 0,
           currentLevel: 1,
           currentStreak: 0,
@@ -176,17 +220,24 @@ class SupabaseService {
         return mockUser;
       }
 
-      debugPrint('Creating user: $name');
+      debugPrint('Creating user: $name with device ID: $deviceId');
       final avatarInitials = _generateAvatarInitials(name);
       final avatarColor = _generateRandomColor();
 
+      final Map<String, dynamic> insertData = {
+        'name': name,
+        'avatar_initials': avatarInitials,
+        'avatar_color': avatarColor,
+      };
+
+      // Add device_id if provided
+      if (deviceId != null) {
+        insertData['device_id'] = deviceId;
+      }
+
       final response = await client
           .from('users')
-          .insert({
-            'name': name,
-            'avatar_initials': avatarInitials,
-            'avatar_color': avatarColor,
-          })
+          .insert(insertData)
           .select()
           .single();
 

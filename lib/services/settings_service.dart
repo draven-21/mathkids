@@ -12,7 +12,7 @@ class SettingsService extends ChangeNotifier {
   static const String _vibrationEnabledKey = 'vibration_enabled';
   static const String _notificationsEnabledKey = 'notifications_enabled';
 
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.dark;
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
   bool _notificationsEnabled = true;
@@ -24,14 +24,15 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    final themeModeIndex = prefs.getInt(_themeModeKey) ?? 0;
+
+    // Default to Dark Mode
+    final themeModeIndex = prefs.getInt(_themeModeKey) ?? ThemeMode.dark.index;
     _themeMode = ThemeMode.values[themeModeIndex];
-    
+
     _soundEnabled = prefs.getBool(_soundEnabledKey) ?? true;
     _vibrationEnabled = prefs.getBool(_vibrationEnabledKey) ?? true;
     _notificationsEnabled = prefs.getBool(_notificationsEnabledKey) ?? true;
-    
+
     notifyListeners();
   }
 
@@ -69,12 +70,12 @@ class SettingsService extends ChangeNotifier {
     await prefs.remove(_soundEnabledKey);
     await prefs.remove(_vibrationEnabledKey);
     await prefs.remove(_notificationsEnabledKey);
-    
-    _themeMode = ThemeMode.system;
+
+    _themeMode = ThemeMode.dark; // Default to Dark Mode
     _soundEnabled = true;
     _vibrationEnabled = true;
     _notificationsEnabled = true;
-    
+
     notifyListeners();
   }
 
